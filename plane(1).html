@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>打飞机</title>
+    <style>
+        /* 飞机的活动范围 */
+        .main{
+           width:800px;
+           height: 700px;
+           background-image: url(./images/background.png);
+           background-repeat: no-repeat;
+           background-size:cover;
+           position: relative;
+           margin: 0px auto;
+           /* position: absolute; */
+           overflow: hidden;
+        }
+        /* 分数血量框 */
+        #score{
+            position:absolute;
+            color: aqua;
+            top:10px;
+            left: 10px;
+            z-index: 2;
+            font-family: 'cursive';
+        }
+        /* 游戏结束弹出框 */
+        #haha{
+            display: none;
+            width: 150px;
+            height: 100px;
+            background-color: brown;
+            position: absolute;
+            border: 5px solid black;
+            left: 50%;
+            top:  50%;
+            margin-left: -75px;
+            margin-top: -50px;
+            text-align: center;
+            z-index: 10000;
+        }
+        #haha p{
+            font-size: 25px;
+            margin:10px 0 15px;
+            padding: 0;
+        }
+        /* 遮罩层 */
+        #zhezhao{
+            display: block;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 999;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+        /* 重新开始按钮 */
+        #haha .againgo {
+            position: absolute;
+            height: 40px;
+            width: 100px;
+            color: black;
+            background-color: brown;
+            top: 115px;
+            left: 24px;
+            border-radius: 15px;
+            font-weight: 600;
+            line-height: 40px;
+            text-align: center;
+            cursor: pointer;
+            z-index: 10000;
+        }
+
+        /* 游戏开始按钮 */
+        #start{
+            position: absolute; 
+            height: 40px;
+            width: 100px;
+            color: black;
+            background-color: brown;
+            top: 290px;
+            left:350px;
+            border-radius: 15px;
+            font-weight: 600;
+            line-height: 40px;
+            text-align: center;
+            cursor: pointer;
+            z-index: 10000;
+        }
+           
+          
+    </style>
+</head>
+<body>
+    <div class="main">
+        <div id="zhezhao"></div>
+        <div id="haha">
+                <p id="lol">游戏结束!</p>
+                <div id="playscrs">分数:<span>0</span></div>
+                <div id="playskills">杀敌数:<span>0</span></div>
+                <div class="againgo">重新开始</div>
+        </div>
+        <div id="score">
+            <div id="playscr">分数:<span>0</span></div>
+            <div id="playskill">杀敌数:<span>0</span></div>
+            <div id="playblood">血量:<spa n>0</spa></div>
+        </div>
+        <div id="start">开始游戏</div>
+    </div>
+
+    <!-- 引入音频 -->
+    <audio src="./vedio/baozha.mp3" id="baozha"></audio>
+    <audio src="./vedio/backgroundmisuic.mp3" id="backgroundmisuic" loop></audio>
+    <audio src="./vedio/shejian.mp3" id="shejian"></audio>
+    <audio src="./vedio/zizisheng.mp3" id="zizisheng"></audio>
+    <audio src="./vedio/backgroundmisuicd.mp3" id="backgroundmisuid" loop></audio>     
+    
+    <script>
+        var mainbox = document.getElementsByClassName('main')[0];                    //获取大盒子
+        var numPlane = [];                                                            //声明一个数组用来存放实例化出来的每一架敌机
+        var numbullet= [];                                                           //用来存放中间发射出来的子弹
+        var playscr = document.getElementById('playscr');                            //获取玩家的分数项
+        var playskill = document.getElementById('playskill');                        //获取玩家的杀敌数
+        var zhezhao = document.getElementById('zhezhao');                            //获取遮罩层
+        var haha = document.getElementById('haha');                                  //获取游戏结束框
+        var playscrs = document.getElementById('playscrs');                          //游戏结束框里的玩家的分数
+        var playskills = document.getElementById('playskills')                       //游戏结束框里的玩家的杀敌数
+        var start = document.getElementById('start');                                //开始按钮
+        //给定时器ID设置全局变量
+        var timeID1 = null;                     
+        var timeIDb = null;
+        var timeID2 = null;
+        var timeID3 = null;
+        var timeID4 = null;
+        var timeID5 = null;
+        var timeID6 = null;
+        //将实例化出来的玩家用全局变量存放
+        var player = null;                                                        
+  
+        // document.getElementById('backgroundmisuid').play();                       //这种方法不行 谷歌浏览器现在不允许自动播放音频视频
+        // document.getElementById('baozha').play(); 
+        /**Smallfish               敌机的构造函数
+        *  @para     x             敌机的横向坐标                                    
+        *  @para     y             敌机的纵向坐标
+        *  @para     imgrc         敌机的图片路径地址
+        *  @para     speed         敌机的移动速度
+        **/
+        function Smallfish(x,y,imgsrc,speed,){
+            this.x = x || 0;          //敌机的横向坐标
+            this.y = y || 0;          //敌机的纵向坐标
+            this.isDead = false;      //用来记录敌机的生死状态,最开始每条小鱼都是活得获得所以为false
+            this.play = true;         //用来记录敌机是否和玩家相撞
+            this.speed = speed;       //敌机的初始速度
+            this.timeD = 30;          //用来记录敌机死后在屏幕上的停留时间
+            this.imgNode = document.createElement('img');      //创造一个图片元素用来引入敌机图片
+            this.src = imgsrc;        //敌机图片的路径
+        }
+        
+        //将实例敌机的函数加到构造函数的原型上面
+         /**rander                     敌机的实例化函数
+        *  @para     width              敌机的横向坐标                                    
+        *  @para     height             敌机的纵向坐标
+        *  @para     rotate             敌机的图片路径地址
+        *  
+        **/
+        Smallfish.prototype.rander = function(width,height,rotate){
+                this.imgNode.style.width = width + 'px';
+                this.imgNode.style.height = height + 'px';
+                this.imgNode.style.transform = 'rotate('+rotate+'deg)';      //这里给图片调整角度 因为要保证敌机的头部始终朝下
+                this.imgNode.style.position = 'absolute';
+                this.imgNode.style.left = this.x + 'px';
+                this.imgNode.style.top = this.y + 'px';
+                this.imgNode.src=this.src;
+                mainbox.appendChild(this.imgNode);
+            }
+
+        //将小飞机的移动方法添加到小飞机放到的构造函数上面去
+        Smallfish.prototype.move = function(){
+                var imgNodetop = parseInt(this.imgNode.style.top);     //对其取出来的数值进行取整去掉其单位
+                this.imgNode.style.top = imgNodetop + this.speed + 'px';
+            }
+
+       /**moveFish    敌机的移动函数
+       *  num         某种类型的敌机的数组
+       */
+       function moveFish(num){
+           //只有活着的敌机才会移动,发生了碰撞的小鱼不会移动
+           //console.log(this.isDead);
+            for(var i = 0; i < num.length; i++){
+                if(num[i].isDead==false){
+                    num[i].move();
+                if(parseInt(num[i].imgNode.style.top)>700){
+                    mainbox.removeChild(num[i].imgNode);                   //此时如果小鱼移动超出了边界则对其经行移出
+                    num.splice(i,1);                                       //将数组中存放的值也要进行相关的移出
+                    }
+                } else{
+                    num[i].timeD--;                                        //开始倒计时,准备被击中的敌机
+                    if(num[i].timeD==0){
+                         mainbox.removeChild(num[i].imgNode);
+                         num.splice(i,1);                                  //数组的这个方法会直接对数组进行修改(i代表数组元素的下标,1代表删除一个元素)
+                    }
+                }  
+            }
+       }
+
+       /**Player         玩家构造函数
+       * @para  x        玩家的横向坐标
+       * @para  y        玩家的纵向坐标
+       * @para  speed    玩家的移动速度
+       * @para  src      玩家的图片的路径  
+       */
+       function Player(x,y,src,speed){
+           this.blood = 5;                                 //玩家的初始的血量为5
+           this.x = x;                                     //纵向坐标
+           this.y = y;                                     //横向坐标
+           this.speed = speed;                             //移动的速度
+           this.src = src;                                 //图片的路径
+           this.imgNode = document.createElement('img');   //玩家的图片节点
+           this.playerleft = false;                        //判断飞机是否想左移动
+           this.playerright = false;                       //判断飞机是否向右移动
+           this.playerdown = false;                         //判断飞机是否向下移动
+           this.playertop = false;                          //判断飞机是否想上移动
+       }
+
+       //将实例化玩家添加到页面的方法放到其构造函数的原型上面去
+       Player.prototype.init = function(){
+                this.imgNode.style.width = 100 + 'px';
+                this.imgNode.style.height = 80 + 'px';
+                this.imgNode.style.top = this.x + 'px';
+                this.imgNode.style.left = this.y + 'px';
+                this.imgNode.style.position = 'absolute';
+                this.imgNode.src = this.src;
+                mainbox.appendChild(this.imgNode);
+       }
+
+       //将玩家的移动控制方法添加到其原型中间去
+       //向左移动玩家
+       Player.prototype.leftmove = function(){
+              if(this.imgNode.style.left == "-100px"){
+                    this.imgNode.style.left = "800px";//视觉欺骗将玩家瞬间移动到另外一遍
+               }else{
+                this.imgNode.style.left = parseInt(this.imgNode.style.left) - this.speed + 'px';
+               }
+       }
+
+       //向右移动玩家
+       Player.prototype.rightmove = function(){
+               if(this.imgNode.style.left=="800px"){
+                    this.imgNode.style.left = "-100px";//视觉欺骗将玩家瞬间移动到另外一遍
+               }else{
+                this.imgNode.style.left = parseInt(this.imgNode.style.left) + this.speed + 'px';
+               }
+               
+           }
+        
+       //向上移动
+       Player.prototype.topmove = function(){
+               if(this.imgNode.style.top=="0px"){
+                this.imgNode.style.top="0px"//在顶部的时候,将玩家限制玩家继续往上移动
+               }else{
+                this.imgNode.style.top = parseInt(this.imgNode.style.top) - this.speed + 'px';
+               }
+               
+           }
+
+        //向下移动
+        Player.prototype.downmove = function(){
+               if(this.imgNode.style.top=="620px"){
+                this.imgNode.style.top=="620px"//到达底部的时候,限制玩家继续向下移动
+               }else{
+                this.imgNode.style.top = parseInt(this.imgNode.style.top) + this.speed + 'px';
+               }
+              
+           }
+
+        //将实例化子弹的方法放在玩家的构造函数的原型中,这样方便拿玩家的定位
+        Player.prototype.shoot = function(){
+            var bullet = new Bullet(parseInt(this.imgNode.style.left) + 45,parseInt(this.imgNode.style.top),'./images/zidand.png',10);
+                //左侧的子弹
+                var bulleta = new Bullet(parseInt(this.imgNode.style.left) + 5,parseInt(this.imgNode.style.top),'./images/zidan.png',10);
+                // //右侧的子弹
+                var bulletb = new Bullet(parseInt(this.imgNode.style.left) + 85,parseInt(this.imgNode.style.top),'./images/zidan.png',10);
+                //将实例化出来的子弹添加到数组中去
+                numbullet.push(bullet);//中
+                numbullet.push(bulleta);//左
+                numbullet.push(bulletb);//右
+        }
+
+  
+
+    // 给页面注册键盘按键按下事件
+    /*处理思路:
+           因为在键盘按键里面直接执行玩家移动函数,系统会有一个延迟事件,为了去掉这个延迟时间将玩家移动函数放在键盘按键事件外执行
+           事件里面仅仅只做判断是否移玩家
+    */
+    // 注册键盘按键按下事件,当相关的按键按下去的时候立马更改玩家的相应方向的移动状态维true
+    document.body.onkeydown = function(e){//键盘按键按下事件,控制玩家的走位
+            
+       switch(e.keyCode){//这种在键盘事件里面让系统来执行这个玩家移动的这个函数会有卡顿感,因为系统存在延迟
+        case 40:
+        player.playerdown = true;//设置开关状态来监控此时的按键的状态
+            // player.downmove();
+            break;
+        case 37:
+        player.playerleft = true;
+            // player.leftmove();
+            break;
+         case 38:
+         player.playertop = true;
+            // player.topmove();
+            break;
+        case 39:
+        player.playerright = true;
+            // player.rightmove();
+            break;
+        case 83:
+            player.shoot();
+            document.getElementById('zizisheng').play();
+            break;
+       }
+    
+    }
+
+     // 注册键盘按键抬起事件,当相关的按键抬起的时候立马更改玩家的相应方向的移动状态为false
+    document.body.onkeyup = function(e){
+        // console.log(e);
+            
+       switch(e.keyCode){//这种在键盘事件里面让系统来执行这个玩家移动的这个函数会有卡顿感,因为系统存在延迟
+        case 40:
+        player.playerdown = false;//设置开关状态来监控此时的按键的状态
+            break;
+        case 37:
+        player.playerleft = false;
+            break;
+         case 38:
+         player.playertop = false;
+            break;
+        case 39:
+        player.playerright = false;
+            break;
+       }
+    }
+
+    //单独设置函数来执行玩家的移动控制以此来抵消键盘按键事件的卡顿
+    function moves(){
+        if( player.playerleft){
+            player.leftmove();
+        }
+        if( player.playerright){
+            player.rightmove();
+        }
+        if( player.playertop){
+            player.topmove();
+        }
+        if ( player.playerdown){
+            player.downmove();
+        }
+    }
+
+  
+
+
+    //创建子弹
+    /*   Bullet           //创建子弹的构造函数    
+    *    @x                //子弹的横向坐标
+    *    @y                //子弹的纵向坐标
+    *    @speed             //子弹的移动速度
+    */
+    
+    function Bullet(x,y,src,speed){
+        this.x = x;//子弹的坐标
+        this.y = y;//子弹纵向的坐标
+        this.imgNodes = document.createElement('img');//创建子弹的节点
+        this.src = src;
+        this.speed = speed;
+        this.init();//将子弹实例化出来
+    }
+
+    // 将子弹的实例化方法放在其构造函数的原型上面
+    Bullet.prototype.init = function(){
+            this.imgNodes.style.position = 'absolute';
+            this.imgNodes.style.left = this.x + 'px';
+            this.imgNodes.style.top = this.y + 'px';
+            this.imgNodes.src = this.src;
+            this.imgNodes.style.width = '10px';
+            this.imgNodes.style.height = '25px';
+            mainbox.appendChild(this.imgNodes);
+    }
+
+    // 将子弹移动的方法放在其构造函数原型上面
+    Bullet.prototype.moves = function(){
+        this.imgNodes.style.top = parseInt(this.imgNodes.style.top) - this.speed + 'px';
+    }
+    /*
+    // bulletMove       让所有的子弹移动起来的函数
+    // @num              相应位置的子弹的数组
+     */
+    function bulletMove(num){
+        for(var i = 0; i < num.length; i++){//中间子弹的移动
+            num[i].moves();
+            if(parseInt(num[i].imgNodes.style.top)<-100){
+                mainbox.removeChild(num[i].imgNodes);
+                num.splice(i,1);
+                }
+        }
+    }
+
+    //设置定时器通过定时器实现其子弹的连续的移动
+   
+    /**bulpen        //子弹和敌机的碰撞函数
+    /* @numa           敌机的数组
+    *  @numb           子弹的数组   
+    */
+    function bulpen(numa, numb){
+       
+        for(var i = 0; i < numa.length; i++){
+            var fileft = parseInt(numa[i].imgNode.style.left);//每个敌机的左边的定位   
+            var fitop =parseInt(numa[i].imgNode.style.top);//每个小于顶部的定位
+            var fitwidth = numa[i].imgNode.offsetWidth;//获取相应敌机的宽
+            var fitheight = numa[i].imgNode.offsetHeight;//获取相应敌机的高
+            for(var j = 0; j < numb.length; j++){//检测每一颗子弹与鱼的碰撞
+                var bulleft = parseInt(numb[j].imgNodes.style.left);//每个子弹左边的位置
+                var bultop = parseInt(numb[j].imgNodes.style.top);//每个子弹顶部的位置
+                if(numa[i].isDead==false){ //首先得判断敌机没有有没有被击中过                     (此处有bug为解决  因为是图片的尺寸问题)
+                    if(bulleft > fileft-10 && bulleft < fileft+fitwidth && bultop > fitop-25 && bultop < fitop + 60){//子弹和小鱼的碰撞条件
+                    document.getElementById('baozha').play();  //当敌机被击中之后会有相应的爆炸声音出来  （此处有bug未解决   爆炸声只能一个接一个播放 而机可以同时击毁多架所以会造成有的敌机被击毁没有声音）
+                    mainbox.removeChild(numb[j].imgNodes);   //将与敌机发生碰撞的子弹移出
+                    numb.splice(j,1);
+                    numa[i].imgNode.src = './images/baozhazhong.gif';
+                    numa[i].isDead = true;
+                    if(fitwidth==60){//通过获取敌机的宽度来判断击落的是那种敌机从而给玩家添加相应的分数
+                        playscr.children[0].innerHTML = (parseInt( playscr.children[0].innerHTML) + 1) + '';      
+
+                    }else{
+                        playscr.children[0].innerHTML = (parseInt( playscr.children[0].innerHTML) + 2) + '';
+                    }
+                    playskill.children[0].innerHTML = (parseInt( playskill.children[0].innerHTML) + 1) + '';    //玩家的杀敌数量加一
+                }
+                
+                }
+            }
+         }
+    }
+
+   
+  
+    
+    //玩家血量的减少
+    //如果敌机和玩家相撞了,那么玩家的血量就相应应的减少
+    function playpen(num){
+        var playleft = parseInt(player.imgNode.style.left);//玩家的左边的定位
+            // console.log(playleft);
+            var playtop = parseInt(player.imgNode.style.top);//玩家顶部的定位
+        for(var i = 0; i <num.length; i++ ){
+            var fileft = parseInt(num[i].imgNode.style.left);//每架敌机的左边的定位 
+            var fitop = parseInt(num[i].imgNode.style.top);//每个敌机顶部的定位
+            // console.log(playtop);
+            if(fileft > playleft-10 && fileft < playleft + 100 && fitop - 25 > playtop && fitop < playtop + 80){
+                    //敌机被撞毁的时候的爆炸声效
+                    document.getElementById('baozha').play(); 
+                    //如果敌机和我的飞机发生碰撞也死亡
+                    num[i].imgNode.src = './images/baozhazhong.gif';
+                    num[i].isDead = true;  //更改敌机的生死状态
+                    if(num[i].play){       //如果敌机已经与玩家发生过碰撞就不会再次对玩家产生影响
+                        num[i].play = false;
+                        playblood.children[0].innerHTML = (parseInt( playblood.children[0].innerHTML) -1) + '';   //将玩家的血量减1
+                        if(parseInt( playblood.children[0].innerHTML)<=0){
+                            //替换玩家的图片实现一个爆炸效果
+                            player.imgNode.src = './images/baozhada.gif';
+                            //停止播放背景音乐
+                            document.getElementById('backgroundmisuid').pause();
+                           //玩家死亡的时候的爆炸声效
+                            document.getElementById('baozha').play(); 
+                             //延迟2000豪秒执行下面的代码 
+                            setTimeout(function(){
+                                zhezhao.style.display = 'block';
+                                haha.style.display = 'block';
+                                playscrs.children[0].innerHTML = parseInt( playscr.children[0].innerHTML) + '';
+                                playskills.children[0].innerHTML = parseInt( playskill.children[0].innerHTML) + '';
+                                clearInterval(timeID1);
+                                clearInterval(timeID2);
+                                clearInterval(timeID3);
+                                clearInterval(timeID4);
+                                clearInterval(timeID5);
+                                clearInterval(timeID6);
+                                clearInterval(timeIDb);
+                            },2000);
+                            
+                        }
+                    }
+                    
+            }
+        }
+    }
+
+    
+   
+    //游戏开始的按钮的处理
+    start.onclick = function(){
+        // 首先将开始按钮清除
+        mainbox.removeChild(start); 
+        //将遮罩层隐藏  
+        zhezhao.style.display = 'none';
+        //开始播放背景音乐
+        document.getElementById('backgroundmisuid').play();
+        // 设置定时器将第一种敌机实例化出来
+       timeID1 = setInterval(function(){
+                var plsyx = Math.floor(Math.random()*750); //实例化出来的敌机纵向坐标随机;
+                var plspeed = parseInt(Math.random()*10 + 1); //实例化出来的敌机的速度随机;
+                var smallyu = new Smallfish(plsyx, 0, './images/dijia.png', plspeed);
+                smallyu.rander(60,40,180); //将实例化出来的敌机渲染到页面中间去
+                numPlane.push(smallyu); //将每一架渲染出来的敌机依次添加到数组中去,方便后面的查找
+        },2000);
+        
+         // 设置定时器将第二种敌机实例化出来
+       timeIDb = setInterval(function(){
+                var plsyx = Math.floor(Math.random()*750); //实例化出来的敌机纵向坐标随机;
+                var plspeed = parseInt(Math.random()*10 + 1); //实例化出来的敌机的速度随机;
+                var smallyu = new Smallfish(plsyx, 0, './images/dijib.png', plspeed);
+                smallyu.rander(45,200,180); //将实例化出来的敌机渲染到页面中间去
+                numPlane.push(smallyu); //将每一架渲染出来的敌机依次添加到数组中去,方便后面的查找
+        },3000);
+
+         //设置定时器连续移动每一架敌机
+       timeID2 = setInterval(function(){
+         moveFish(numPlane);
+       },50);
+
+    //实例化出来一个玩家
+    player = new Player(300,600,'./images/dijie.png',10);   
+    player.init();                                              //将实例化出来的玩家添加到页面中间去
+    playblood.children[0].innerHTML = player.blood;             //获取玩家的生命值将其添加到页面中去
+   console.log(playblood.children[0]);
+    //设置定时器来实时的监听玩家是否移动
+    timeID3 = setInterval(moves,20);//通过定时器缩短函数的执行性事件,使玩家移动起来看起来很流畅
+
+    //设置定时器来连续移动每一颗子弹
+    timeID4 = setInterval(function(){
+        bulletMove(numbullet);
+    },20);
+
+   //设置定时器来实时的检测图片与子弹是否碰撞       （这样会存在问题，因为定时是间隔一段时间执行一次，所以可能会在这段间隔的时间里面子弹与敌机发生了碰撞而没有被检测到）
+   timeID5 = setInterval(function(){
+        bulpen(numPlane, numbullet);
+    },50);
+
+   //设置定时器在定时器里面利用定时器检测是否有敌机与玩家的飞机相撞  （这里也会存在与上面子相同的问题）
+    timeID6 = setInterval(function(){
+        playpen(numPlane);
+    },20);
+    
+    document.body.onkeydown = function(e){//键盘按键按下事件,控制玩家的走位
+            
+       switch(e.keyCode){//这种在键盘事件里面让系统来执行这个玩家移动的这个函数会有卡顿感,因为系统存在延迟
+        case 40:
+        player.playerdown = true;//设置开关状态来监控此时的按键的状态
+            // player.downmove();
+            break;
+        case 37:
+        player.playerleft = true;
+            // player.leftmove();
+            break;
+         case 38:
+         player.playertop = true;
+            // player.topmove();
+            break;
+        case 39:
+        player.playerright = true;
+            // player.rightmove();
+            break;
+        case 83:
+            player.shoot();
+            document.getElementById('zizisheng').play();
+            break;
+       }
+    
+    }
+
+     // 注册键盘按键抬起事件,当相关的按键抬起的时候立马更改玩家的相应方向的移动状态为false
+    document.body.onkeyup = function(e){
+        // console.log(e);
+            
+       switch(e.keyCode){//这种在键盘事件里面让系统来执行这个玩家移动的这个函数会有卡顿感,因为系统存在延迟
+        case 40:
+        player.playerdown = false;//设置开关状态来监控此时的按键的状态
+            break;
+        case 37:
+        player.playerleft = false;
+            break;
+         case 38:
+         player.playertop = false;
+            break;
+        case 39:
+        player.playerright = false;
+            break;
+       }
+    }
+
+
+    }
+
+    // 再来一次的按钮的处理
+    document.getElementsByClassName('againgo')[0].onclick = function(){
+        location.reload();   
+    }
+    </script>
+</body>
+</html>
